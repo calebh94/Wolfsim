@@ -7,6 +7,8 @@ from mesa.datacollection import DataCollector
 from mesa.batchrunner import BatchRunner
 import numpy as np
 
+# https://github.com/jrmak/FNNR-ABM-Primate/blob/master/ABM/monkeys.py
+
 
 def compute_pack_health(model):
     agent_ages = [agent.age for agent in model.schedule.agents]
@@ -69,7 +71,7 @@ class WolfModel(Model):
             self.grid.place_agent(a, (x,y))
 
         self.datacollector = DataCollector(
-            agent_reporters={"Alive": "alive","Age": "age"},
+            agent_reporters={"Alive": "alive","Age": "age", "Pos": "pos"},
             model_reporters={"Pack Health": compute_pack_health}
         )
 
@@ -77,6 +79,11 @@ class WolfModel(Model):
         '''Advance the model by one step.'''
         self.datacollector.collect(self)
         self.schedule.step()
+        # add other "events" here
+        # radio towers do detection
+        # GPS / Satellite do detection
+        # helicopter / plane do tracking with detection information
+
 
 
 def sim_run():
@@ -137,7 +144,7 @@ def batch_run():
 
 
 if __name__ == "__main__":
-    # sim_run()
-    batch_run()
+    sim_run()
+    # batch_run()
 
 

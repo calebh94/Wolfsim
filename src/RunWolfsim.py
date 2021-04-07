@@ -12,7 +12,7 @@ from WolfsimModel import WolfModel, compute_pack_health
 def sim_run():
     iterations = 1
     tf = 5
-    wolfpack_size = 10
+    wolfpack_size = 1000
     width = 10
     height = 10
     all_ages = []

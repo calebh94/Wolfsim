@@ -1,7 +1,6 @@
 """
-Environment definition as from: https://github.com/jrmak/FNNR-ABM-Primate/
-# Land categories are typed as classes so that they can undergo land change in case that feature is ever added
-# to the model in the future.
+Environment definition modified from: https://github.com/jrmak/FNNR-ABM-Primate/
+# Land categories are typed as classes to keep up with in mesa grid object
 """
 
 from mesa.agent import Agent
@@ -16,62 +15,14 @@ class Environment(Agent):
     def step(self):
         pass
 
-class Bamboo(Environment):
-    type = 1
-
-
-class Coniferous(Environment):
-    type = 2
-
-
-class Broadleaf(Environment):
-    type = 3
-
-
-class Mixed(Environment):
-    type = 4
-
-
-class Lichen(Environment):
-    type = 5
-
-
-class Deciduous(Environment):
-    type = 6
-
-
-class Shrublands(Environment):
-    type = 7
-
-
-class Clouds(Environment):
-    type = 8
-
-
-class Farmland(Environment):
-    type = 9
-
+class Vegetation(Environment):
+    type = 0
 
 class Outside_FNNR(Environment):
     type = -9999
 
-
-# human pixels
-
-class Household(Environment):
-    type = 10
-
-class Farm(Environment):
-    type = 11
-
-class PES(Environment):
-    type = 12
-
-class Forest(Environment):
-    type = 13
-
 # elevation
-
 class Elevation_Out_of_Bound(Environment):
-    lower_bound = 1000
-    upper_bound = 2200
+    type = 99
+    lower_bound = 1
+    upper_bound = 5000

@@ -28,7 +28,8 @@ The core Python packages are listed below, as well as in the setup.py file. Pyth
 * *RunWolfsim*
     * The functions for running single cases, or batch cases of the simulation.
      Functions are also available for storing data in the simulation using the mesa datacollector class.
-    
+* *utils*
+    * Additional functions needed throughout the other three modules.
 ## Data
 * Elevation Files
     * The file defining the elevation in feet of the area of interest.

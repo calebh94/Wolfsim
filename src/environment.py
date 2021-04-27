@@ -25,4 +25,7 @@ class Outside_FNNR(Environment):
 class Elevation_Out_of_Bound(Environment):
     type = 99
     lower_bound = 1
-    upper_bound = 5000
+    upper_bound = 3000
+
+class Img(Environment):
+    type = 1

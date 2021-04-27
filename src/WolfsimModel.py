@@ -14,8 +14,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
 
-from WolfsimAgents import WolfAgent
+from WolfsimAgents import WolfAgent, DetectAgent
 from environment import *
+from utils import *
 
 # Plotting preparation
 fig, ax = plt.subplots()
@@ -28,138 +29,27 @@ OLD = False
 # hh_file = 'data/hh_survey.csv'
 resource_dict = {}
 
-# Data and plotting functions
-def compute_pack_health(model):
-    # agent_ages = [agent.age for agent in model.schedule.agents]
-    # agent_health = [agent.alive for agent in model.schedule.agents if agent.alive == True]
-    #
-    # agesum = np.sum(agent_ages[agent_health==True]) / len(agent_health)
-    agent_ages = [agent.age for agent in model.schedule.agents if agent.alive == True
-                  ]
-    avgage = np.average(agent_ages)
-    return avgage
-
-def compute_pack_position(model):
-    agents_pos = [agent.pos for agent in model.schedule.agents if agent.alive == True]
-    avg_pos = np.average(agents_pos,axis=0)
-    return avg_pos
-
-def compute_updated_target(model):
-    agents_pos = [agent.pos for agent in model.schedule.agents]
-    current_target = model.target
-    distance = np.average(np.linalg.norm(np.array(agents_pos) - np.array(model.sites[current_target]),axis=1))
-    # distance = np.average(np.linalg.norm(np.array(agents_pos) - np.array(model.sites[current_target]),axis=1))
-    if distance <= 10:
-        model.feeding = model.feeding + 1
-        if model.feeding >= 5:
-            new_target = random.randint(0,len(model.sites)-1)
-        else:
-            new_target = current_target
-    else:
-        model.feeding = 0
-        new_target = current_target
-    return new_target
-
-
-def compute_updated_target_pathing(model, plot=False):
-    agents_pos = [agent.pos for agent in model.schedule.agents]
-    current_waypoint = model.path[0]
-    feeding_site = model.target
-    # distance = np.average(np.linalg.norm(np.array(agents_pos) - np.array(model.sites[current_waypoint]),axis=1))
-    distance = np.average(np.linalg.norm(np.array(agents_pos) -np.array(current_waypoint),axis=1))
-    # distance = np.max(np.linalg.norm(np.array(agents_pos) - np.array(model.sites[current_target]),axis=1))
-    if distance <= 7.5 :
-        if len(model.path) == 1: # reached target position
-            model.feeding = model.feeding + 1
-            if model.feeding >= 5:
-                new_target = random.randint(0,len(model.sites)-1)
-                source = np.average(np.array(agents_pos), axis=0).astype(np.int)
-                source = tuple(source)
-                target = model.sites[new_target]
-                # Find shortest path for wolfpack travel using
-                # new_path = nx.algorithms.shortest_paths.generic.shortest_path(model.G, source=source, target=target,
-                #                                                       weight='weight')
-                new_path = nx.algorithms.shortest_paths.weighted.dijkstra_path(model.G, source=source, target=target,
-                                                                               weight='weight')
-                if plot:
-                    x, y = zip(*new_path)
-                    print(y)
-                    plt.scatter(y, x, marker='o')
-                    plt.gca().invert_yaxis()
-                    plt.imshow(model.tree, cmap='summer', interpolation='nearest', alpha=.5)
-                    plt.imshow(model.grid_elevation, cmap='hot', interpolation='nearest')
-                    plt.show()
-            else:
-                new_target = feeding_site
-                new_path = model.path
-        else:
-            model.path.pop(0)
-            new_path = model.path
-            new_target = feeding_site
-    else:
-        model.feeding = 0
-        new_target = feeding_site
-        new_path = model.path
-
-    return new_target, new_path
-
-def plot_agent_positions(model):
-    agent_counts = np.zeros((model.grid.width, model.grid.height))
-    # for cell in model.grid.coord_iter():
-    #     cell_content, x, y = cell
-    #     agent_count = len(cell_content)
-    #     agent_counts[x][y] = agent_count
-    for wolf in model.schedule.agents:
-        pos = wolf.pos
-        agent_counts[pos[0]][pos[1]] += 1
-
-    ax.imshow(agent_counts, interpolation='nearest')
-    # ax.set_title("Wolf position at time {}".format(model.time))
-    plt.title("Wolf position at time {}".format(model.time))
-    # ax.colorbar()
-    fig.savefig("results/wolf_positions_{}".format(model.time))
-    # plt.show()
-    # plt.pause(0.1)
-
-def plot_feeding_zones(model):
-    feeding_zones = np.zeros((model.grid.width, model.grid.height))
-    # for cell in model.grid.coord_iter():
-    #     cell_content, x, y = cell
-    #     agent_count = len(cell_content)
-    #     agent_counts[x][y] = agent_count
-    for pos in model.sites:
-        feeding_zones[pos[0]][pos[1]] += 1
-
-    plt.imshow(feeding_zones, interpolation='nearest')
-    plt.title("Feeding sites")
-    plt.colorbar()
-    plt.show()
-    # plt.pause(0.1)
-
-def readCSV(text):
-    cells = []
-    f = open(text, 'r')
-    body = f.readlines()
-    for line in body:
-        cells.append(line.split(","))
-    return cells
 
 # Wolf simulation model class
 class WolfModel(Model):
     """A model with some number of wolves."""
-    def __init__(self, N, width, height, plot_movement = False):
+    # def __init__(self, N, width, height, plot_movement = False,tracking_type, n_collars):
+    def __init__(self, N, width, height, elev, veg, tracking_type="planes", n_collars=1, plot_movement=False):
         super().__init__()
         self.num_agents = N
-        if OLD:
-            width = self.readASCII_OLD(vegetation_file_OLD)[1] # width as listed at the beginning of the ASCII file
-            height = self.readASCII_OLD(vegetation_file_OLD)[2] # height as listed at the beginning of the ASCII file
-        else:
-            width = self.readASCII(vegetation_file)[1] # width as listed at the beginning of the ASCII file
-            height = self.readASCII(vegetation_file)[2] # height as listed at the beginning of the ASCII file
+        # if OLD:
+        #     width = self.readASCII_OLD(vegetation_file_OLD)[1] # width as listed at the beginning of the ASCII file
+        #     height = self.readASCII_OLD(vegetation_file_OLD)[2] # height as listed at the beginning of the ASCII file
+        # else:
+        #     width = self.readASCII(vegetation_file)[1] # width as listed at the beginning of the ASCII file
+        #     height = self.readASCII(vegetation_file)[2] # height as listed at the beginning of the ASCII file
         self.width = width
         self.height = height
         self.grid = MultiGrid(width, height, True)
+        # self.elev = elev
         self.grid_elevation = np.zeros((width, height))
+        # self.grid_elevation = elev.copy()
+        # self.veg = veg
         self.schedule = RandomActivation(self)
         self.running = True
         self.time = 0
@@ -169,41 +59,58 @@ class WolfModel(Model):
         self.plot_movement = plot_movement
         self.feeding = 0
         self.path = []
+        self.tracked_position = None
+        self.tracking_type=tracking_type
+
+        if tracking_type=="satellite":
+            c_type=2
+        else:
+            c_type=1
 
         empty_masterdict = {'Outside_FNNR': [], 'Elevation_Out_of_Bound': [], 'Vegetation': []}
 
         # TODO: modify to only do this on the first run when running batch cases
-        if OLD:
-            tree = self.readASCII_OLD(vegetation_file_OLD)[0]  # list of all coordinate values; see readASCII function
-            elev = self.readASCII_OLD(elevation_file_OLD)[0]  # list of all elevation values
-        else:
-            tree = self.readASCII(vegetation_file)[0]  # list of all coordinate values; see readASCII function
-            elev = self.readASCII(elevation_file)[0]  # list of all elevation values
+        # if OLD:
+        #     tree = self.readASCII_OLD(vegetation_file_OLD)[0]  # list of all coordinate values; see readASCII function
+        #     elev = self.readASCII_OLD(elevation_file_OLD)[0]  # list of all elevation values
+        # else:
+        #     tree = self.readASCII(vegetation_file)[0]  # list of all coordinate values; see readASCII function
+        #     elev = self.readASCII(elevation_file)[0]  # list of all elevation values
         self.elevation_fill(elev)
 
         for x in [Elevation_Out_of_Bound]: #TODO: we need to use this info to restrict movement through "obstacles"
             self.populate(empty_masterdict, elev, x, width, height)
         for x in [Vegetation, Outside_FNNR]:
-            self.populate(empty_masterdict, tree, x, width, height)
-
-        #TODO: need to do some optimizing of variables and objects around here***
+            self.populate(empty_masterdict, veg, x, width, height)
+        # adding image agent in
+        # img_agent = Img(0, self)
+        # self.grid.place_agent(img_agent, (0,0))
 
         # graph structure for path planning
-        tree = np.array(tree).astype(np.int).transpose()
+        # tree = np.array(veg).astype(np.int).transpose()
+        tree = np.zeros((height, width))
+        for i in range(len(veg)):
+            for j in range(len(veg[0])):
+                tree[i,j] = int(veg[i][j])
+        tree = tree.transpose()
         self.tree = tree.copy()
-        elev = self.grid_elevation.copy()
+
+
+        # self.tree = tree.copy()
+        elevation = self.grid_elevation.copy()
+        # elevation = elevation.transpose()
 
         self.G = nx.generators.lattice.grid_2d_graph(self.width, self.height, periodic=False)
         tree_value = 1 * 10
         elev_value = 0.1 * 30
         for e in self.G.edges():
             # print(Tree[e[0]])
-            if elev[e[0]] + elev[e[1]] < 2 or tree[e[0]] + tree[e[1]] < 2 :
+            if elevation[e[0]] + elevation[e[1]] < 2 or tree[e[0]] + tree[e[1]] > 0 :
                 self.G[e[0]][e[1]]['weight'] = 99999999
             else:
 
                 self.G[e[0]][e[1]]['weight'] = tree_value * (abs(tree[e[0]] + tree[e[1]] - 4)) + elev_value * (
-                        abs((elev[e[0]] - elev[e[1]])) / 2)
+                        abs((elevation[e[0]] - elevation[e[1]])) / 2)
 
         masterdict = empty_masterdict
 
@@ -213,9 +120,20 @@ class WolfModel(Model):
                 if coordinate in startinglist:
                     startinglist.remove(coordinate)
 
-        self.sites = startinglist  # the target locations are formed from the startinglist above
-        self.target = self.random.randint(0,len(self.sites)) # update the initial target to a random location
+        # self.sites = startinglist  # the target locations are formed from the startinglist above
+        num_sites = 8
+        site_indices = np.linspace(0,len(startinglist)-1, num_sites)
+        self.sites = [startinglist[int(ind)] for ind in site_indices]
+        self.target = self.random.randint(0,num_sites-1) # update
+        # the initial target to a random location
+        # self.target=0
         self.path = [self.sites[self.target]]  # initialize the wolf path to a list of only the intial location
+        # self.target, self.path = compute_updated_target_pathing(self, plot=False)
+        self.tracked_position = self.sites[self.target]
+
+        for p in range(0,len(self.sites)):
+            feed_site_agent = Vegetation(p, self, pos=self.sites[p], elevation=self.grid_elevation[self.sites[p]])
+            self.grid.place_agent(feed_site_agent, self.sites[p])
 
         plot_sites = False
         if plot_sites:
@@ -224,7 +142,11 @@ class WolfModel(Model):
         # Create agents
         for i in range(self.num_agents):
             age = random.randint(1,5)
-            wolf = WolfAgent(i, age, self)
+            if i <n_collars:
+                collar=c_type
+            else:
+                collar=0
+            wolf = WolfAgent(i, age, collar, self)
             self.schedule.add(wolf)
             # add agents to grid
             # x = self.random.randrange(self.grid.width)
@@ -233,12 +155,39 @@ class WolfModel(Model):
             # start = random.choice(startinglist)
             # start = startinglist[ind]
             start = startinglist[self.target]
-            start = tuple(start + random.randint(0,5,2)) # randomly push around target location
+            # start = tuple(start + random.randint(0,5,2)) # randomly push around target location
             # self.grid.place_agent(a, (x,y))
             self.grid.place_agent(wolf, start)
+
+        # Create Trackers
+        if self.tracking_type=="satellite":
+            sat_pos = (100,100) #TODO: why does this break
+            tracker = DetectAgent(i+self.num_agents, "satellite", sat_pos, self)
+            self.schedule.add(tracker)
+            self.grid.place_agent(tracker, tracker.pos)
+        if self.tracking_type=="stations":
+            stat_pos = [(60,100), (160,100)] #TODO: why does this break
+            for i in range(len(stat_pos)):
+                tracker = DetectAgent(i+self.num_agents, self.tracking_type, stat_pos[i], self)
+                self.schedule.add(tracker)
+                self.grid.place_agent(tracker, tracker.pos)
+        if self.tracking_type=="helicopters":
+            stat_pos = self.sites #TODO: why does this break
+            for i in range(len(stat_pos)):
+                tracker = DetectAgent(i+self.num_agents, self.tracking_type, stat_pos[i], self)
+                self.schedule.add(tracker)
+                self.grid.place_agent(tracker, tracker.pos)
+        if self.tracking_type == "planes":
+            stat_pos = [(100, 50),(0, 100), (50,75),(116,100),(133,149),(150,35),(199,20)]  # TODO: why does this break
+            for i in range(len(stat_pos)):
+                tracker = DetectAgent(i + self.num_agents, self.tracking_type, stat_pos[i], self)
+                self.schedule.add(tracker)
+                self.grid.place_agent(tracker, tracker.pos)
+
         self.datacollector = DataCollector(
-            agent_reporters={"Alive": "alive","Age": "age", "Pos": "pos"},
-            model_reporters={"Pack Health": compute_pack_health ,"Pack Position": compute_pack_position}
+        agent_reporters={"Alive": "alive","Age": "age", "Pos": "pos"},
+        model_reporters={"Pack Health": compute_pack_health ,"Pack Position": compute_pack_position, "Pack Estimated Position": compute_est_pack_position,
+                             "Pack Track Error": compute_track_error}
         )
 
     def get_sites(self):
@@ -252,15 +201,17 @@ class WolfModel(Model):
         self.time += 1 # day metric
         self.datacollector.collect(self)
         self.avg_pos = compute_pack_position(self)
+        self.tracked_position = compute_est_pack_position(self)
         # self.target = compute_updated_target(self)
         self.target, self.path = compute_updated_target_pathing(self, plot=False)
         if self.plot_movement and self.time % 25 == 0:
-            plot_agent_positions(self)
+            plot_agent_positions(self, fig, ax)
+        for wolfv in self.schedule.agents:
+            if wolfv.type==4:
+                wolfv.detected=False
+            if wolfv.type==5:
+                wolfv.active=False
         self.schedule.step()
-        # add other "events" here inside a Priority Queue
-        # radio towers do detection
-        # GPS / Satellite do detection
-        # helicopter / plane do tracking with detection information
 
     def elevation_fill(self, grid):
         for y in range(self.height):  # for each pixel,
@@ -270,39 +221,12 @@ class WolfModel(Model):
 
         plot=False
         if plot:
+            # np.save("elevation_image.)
             plt.imshow(self.grid_elevation)
             plt.clim(0, self.grid_elevation.max())
             plt.colorbar()
             plt.title("Elevation Map")
             plt.show()
-
-    def readASCII(self, text):
-        # reads in a text file that determines the environmental grid setup from ABM
-        f = open(text, 'r')
-        body = f.readlines()
-        width = body[0][-4:-1]  # last 4 characters of line that contains the 'width' value
-        height = body[1][-5:-1]
-        abody = body[7:]  # ASCII file with a header
-        f.close()
-        abody = reversed(abody)
-        cells = []
-        for line in abody:
-            cells.append(line.replace("\n","").split(" "))
-        return [cells, int(width), int(height)]
-
-    def readASCII_OLD(self, text):
-        # reads in a text file that determines the environmental grid setup from ABM
-        f = open(text, 'r')
-        body = f.readlines()
-        width = body[0][-4:]  # last 4 characters of line that contains the 'width' value
-        height = body[1][-5:]
-        abody = body[6:]  # ASCII file with a header
-        f.close()
-        abody = reversed(abody)
-        cells = []
-        for line in abody:
-            cells.append(line.split(" "))
-        return [cells, int(width), int(height)]
 
     def populate(self, masterdict, grid, land_type, width, height):
         counter = 0  # sets agent ID - not currently used
@@ -321,13 +245,13 @@ class WolfModel(Model):
                 elif land_type.__name__ == 'Vegetation':
                     if land_type.type == value:
                         land.elevation = value
-                        self.grid.place_agent(land, land_grid_coordinate)
+                        # self.grid.place_agent(land, land_grid_coordinate)
                         masterdict[land.__class__.__name__].append(land_grid_coordinate)
                         counter += 1
                 else:  # elevation background
                 # if land_type.type == value:
                     land.elevation = value
-                    self.grid.place_agent(land, land_grid_coordinate)
+                    # self.grid.place_agent(land, land_grid_coordinate)
                     masterdict[land.__class__.__name__].append(land_grid_coordinate)
                     counter += 1
 

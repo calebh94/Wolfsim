@@ -5,6 +5,7 @@ Environment definition modified from: https://github.com/jrmak/FNNR-ABM-Primate/
 
 from mesa.agent import Agent
 
+
 class Environment(Agent):
 
     def __init__(self, unique_id, model, pos = None, elevation = None):
@@ -15,17 +16,20 @@ class Environment(Agent):
     def step(self):
         pass
 
+
 class Vegetation(Environment):
     type = 0
+
 
 class Outside_FNNR(Environment):
     type = -9999
 
-# elevation
+
 class Elevation_Out_of_Bound(Environment):
     type = 99
     lower_bound = 1
     upper_bound = 3000
+
 
 class Img(Environment):
     type = 1

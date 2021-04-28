@@ -20,15 +20,6 @@ from utils import *
 
 # Plotting preparation
 fig, ax = plt.subplots()
-# DATA FILES
-vegetation_file_OLD = 'data/vegetation.txt'
-vegetation_file = 'data/400x300TreeASCbyte2.asc'
-elevation_file_OLD = 'data/DEM.txt'
-elevation_file = 'data/400x300ElevASCint16.asc'
-OLD = False
-# hh_file = 'data/hh_survey.csv'
-resource_dict = {}
-
 
 # Wolf simulation model class
 class WolfModel(Model):
@@ -37,19 +28,10 @@ class WolfModel(Model):
     def __init__(self, N, width, height, elev, veg, tracking_type="planes", n_collars=1, plot_movement=False):
         super().__init__()
         self.num_agents = N
-        # if OLD:
-        #     width = self.readASCII_OLD(vegetation_file_OLD)[1] # width as listed at the beginning of the ASCII file
-        #     height = self.readASCII_OLD(vegetation_file_OLD)[2] # height as listed at the beginning of the ASCII file
-        # else:
-        #     width = self.readASCII(vegetation_file)[1] # width as listed at the beginning of the ASCII file
-        #     height = self.readASCII(vegetation_file)[2] # height as listed at the beginning of the ASCII file
         self.width = width
         self.height = height
         self.grid = MultiGrid(width, height, True)
-        # self.elev = elev
         self.grid_elevation = np.zeros((width, height))
-        # self.grid_elevation = elev.copy()
-        # self.veg = veg
         self.schedule = RandomActivation(self)
         self.running = True
         self.time = 0
@@ -61,11 +43,7 @@ class WolfModel(Model):
         self.path = []
         self.tracked_position = None
         self.tracking_type=tracking_type
-
-        if tracking_type=="satellite":
-            c_type=2
-        else:
-            c_type=1
+        self.track_error_sum = 0
 
         empty_masterdict = {'Outside_FNNR': [], 'Elevation_Out_of_Bound': [], 'Vegetation': []}
 
@@ -121,7 +99,7 @@ class WolfModel(Model):
                     startinglist.remove(coordinate)
 
         # self.sites = startinglist  # the target locations are formed from the startinglist above
-        num_sites = 8
+        num_sites = 8  # limiting feeding sites to 8 locations evelty spaced across grid
         site_indices = np.linspace(0,len(startinglist)-1, num_sites)
         self.sites = [startinglist[int(ind)] for ind in site_indices]
         self.target = self.random.randint(0,num_sites-1) # update
@@ -137,48 +115,48 @@ class WolfModel(Model):
 
         plot_sites = False
         if plot_sites:
-            plot_feeding_zones(self)
+            plot_feeding_zones(self, startinglist)
+
+        # Detection Method input for collar type
+        if tracking_type=="satellite":
+            c_type=2
+        else:
+            c_type=1
 
         # Create agents
         for i in range(self.num_agents):
             age = random.randint(1,5)
-            if i <n_collars:
-                collar=c_type
+            if i < n_collars:
+                collar = c_type
             else:
-                collar=0
+                collar = 0
             wolf = WolfAgent(i, age, collar, self)
             self.schedule.add(wolf)
             # add agents to grid
-            # x = self.random.randrange(self.grid.width)
-            # y = self.random.randrange(self.grid.height)
-            # ind = random.randint(0,len(startinglist))
-            # start = random.choice(startinglist)
-            # start = startinglist[ind]
-            start = startinglist[self.target]
+            start = self.sites[self.target]
             # start = tuple(start + random.randint(0,5,2)) # randomly push around target location
-            # self.grid.place_agent(a, (x,y))
             self.grid.place_agent(wolf, start)
 
         # Create Trackers
         if self.tracking_type=="satellite":
-            sat_pos = (100,100) #TODO: why does this break
+            sat_pos = (100,100)
             tracker = DetectAgent(i+self.num_agents, "satellite", sat_pos, self)
             self.schedule.add(tracker)
             self.grid.place_agent(tracker, tracker.pos)
         if self.tracking_type=="stations":
-            stat_pos = [(60,100), (160,100)] #TODO: why does this break
+            stat_pos = [(60,100), (160,100)]
             for i in range(len(stat_pos)):
                 tracker = DetectAgent(i+self.num_agents, self.tracking_type, stat_pos[i], self)
                 self.schedule.add(tracker)
                 self.grid.place_agent(tracker, tracker.pos)
         if self.tracking_type=="helicopters":
-            stat_pos = self.sites #TODO: why does this break
+            stat_pos = self.sites
             for i in range(len(stat_pos)):
                 tracker = DetectAgent(i+self.num_agents, self.tracking_type, stat_pos[i], self)
                 self.schedule.add(tracker)
                 self.grid.place_agent(tracker, tracker.pos)
         if self.tracking_type == "planes":
-            stat_pos = [(100, 50),(0, 100), (50,75),(116,100),(133,149),(150,35),(199,20)]  # TODO: why does this break
+            stat_pos = [(100, 50),(0, 100), (50,75),(116,100),(133,149),(150,35),(199,20)]
             for i in range(len(stat_pos)):
                 tracker = DetectAgent(i + self.num_agents, self.tracking_type, stat_pos[i], self)
                 self.schedule.add(tracker)
@@ -187,7 +165,7 @@ class WolfModel(Model):
         self.datacollector = DataCollector(
         agent_reporters={"Alive": "alive","Age": "age", "Pos": "pos"},
         model_reporters={"Pack Health": compute_pack_health ,"Pack Position": compute_pack_position, "Pack Estimated Position": compute_est_pack_position,
-                             "Pack Track Error": compute_track_error}
+                             "Pack Track Error": compute_track_error, "Pack Average Track Error":compute_track_error_average}
         )
 
     def get_sites(self):
@@ -203,7 +181,7 @@ class WolfModel(Model):
         self.avg_pos = compute_pack_position(self)
         self.tracked_position = compute_est_pack_position(self)
         # self.target = compute_updated_target(self)
-        self.target, self.path = compute_updated_target_pathing(self, plot=False)
+        self.target, self.path = compute_updated_target_pathing(self, plot=True)
         if self.plot_movement and self.time % 25 == 0:
             plot_agent_positions(self, fig, ax)
         for wolfv in self.schedule.agents:

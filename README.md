@@ -3,6 +3,7 @@
 Wolf Simulator for CSE 6730, Georgia Institute of Technology, Spring 2021
 
 ![Wolfsim Logo](bin/Wolfsim.jpg?raw=true "WolfSim Logo")
+*Graphic created by Alexander Parmley (http://www.aparmley.com/)
 
 ## Overview
 Our team has been tasked by the Alaska Department of Fish and Game, working in conjunction with the Alaska Department of Transportation and the Anchorage Port Authority, to assess various tracking options for wolf populations inside an area of interest surrounding Anchorage, including the majority of the Alaska Range and segments of the Wrangell and Chugach Mountains.  More specifically, this area spans a rectangular area 200 miles north, east, and west of the city of Anchorage, as well as 100 miles to the South. The main objective is to assess wolf-tracking methods under varying environmental factors and communications constraints to better assist in these conservation efforts. A simulation environment is created in order to evaluate the current tracking methods that use radio collars, satellite collars, or aerial spotting.   Each method has its advantages and disadvantages that should be taken into consideration such as range, error, and consistency. 
